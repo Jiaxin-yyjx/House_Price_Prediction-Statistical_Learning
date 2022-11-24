@@ -8,13 +8,17 @@ output: html_document
 ```{r}
 library(readr)
 library(tidymodels)
-library("DataExplorer")
-library("xgboost")
-library("data.table")
-library("mltools")
-library("glmnet")
-library("ggplot2")
 library(psych)
+library(stringr)
+library(GGally)
+library(DataExplorer)
+library(xgboost)
+library(data.table)
+library(mltools)
+library(glmnet)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
 ```
 
 
@@ -39,6 +43,8 @@ print(nrow(test))
 str(train)
 ```
 
+There are 1460 observations and 81 variables in the training data set.
+There are 1447 observations and 81 variables in the testing data set.
 
 ### Check data - (2) data type
 We have two types of variables: 52 Categorical variables, and 28 Numeric variables.
@@ -120,14 +126,6 @@ From the correlation graph above, we can clearly find that [BsmtFinSF1, BsmtFull
 
 
 ### EDA - graph
-
-```{r}
-dim(train)
-```
-
-There are 1460 observations and 81 variables in the training data set.
-
-
 First, lets's start to explore the response - Sale Price (in dollars).
 
 
@@ -158,12 +156,11 @@ cor(train[,unlist(lapply(train, is.numeric))])
 From the last part, we find that the variables $TotalBsmtSF$, $1stFlrSF$, $GrLivArea$ have strong correlation with the response $SalePrice$.
 
 ```{r}
-strong_collearity <- subset(data.train, select = c(TotalBsmtSF, X1stFlrSF, GrLivArea, SalePrice))
+strong_collearity <- subset(train, select = c(TotalBsmtSF, X1stFlrSF, GrLivArea, SalePrice))
 pairs.panels(strong_collearity)
 ```
 
 From the plot, we can verify that all of these three variables $TotalBsmtSF$ (Total square feet of basement area), $1stFlrSF$ (First Floor square feet), $GrLivArea$ (Above grade (ground) living area square feet) have strong positive correlation with the response $SalePrice$. In other words, as each of these three factors (Total square feet of basement area / First Floor square feet / Above grade (ground) living area square feet) increasing, $SalePrice$ will get increase.
-
 
 
 In addition, we would also explore those categorical variables that might be useful for predicting the response. 
@@ -206,7 +203,6 @@ OverallQual: Rates the overall material and finish of the house.
 
 
 From the colorful plot, we can find that as Rates the overall material and finish of the house increasing, the sale price of the house gets increased. Besides, if the rates the overall material and finish of the house is below average, the sale price varies for the largest range other than that of other rates. In addition, there is no big difference of the mean sale price of house at rate = 6 and rate = 7.
-
 
 
 Also, we can find that $Neighboorhood$ is also a good predictor for its positive strong correlation with $SalePrice$.
@@ -254,5 +250,74 @@ ggplot(train, aes(x=AgeHouse,y=SalePrice)) + geom_point(shape=20) + geom_smooth(
 
 As the age of house increases, the sale price will get decreasing.
 
-
 In breif, based on the EDA, there are lots of variables having weak correlation with the response. Thus, we would like to choose the LASSO and ridge regression for modeling.
+
+
+## Part II: Model Analysis
+### Motivation 
+Housing market is an important sector of the economy. Having an accurate prediction of housing price is of interest to the general public and the economic forecast. Conventional models for predictions include regression, decision trees, naive bayes, recurrent neural networks, etc. A good model should be able to generalize well to the test data, meaning that it should aim to capture the global minimum (in a strong convex optimization problem) without over-fitting or under-fitting, this means we need to take into account the bias-variance trade-off. Motivated by these insights, we propose using Lasso (L1 regularization) based logistic regression model for this particular task. Fitting a lasso-based regression model should ensure enough model capacity while minimizing the chance of over-fitting through regularization. It also has advantage over neural network given our limited amount of data samples. To find the best modeling strategy, we also test Ridge along with Lasso.
+
+### Math
+LASSO:
+$$\min_{\beta _{0},\beta } \left\{\sum_{i=1}^{N}\left ( y_{i}-\beta _{0}-x_{i}^{T}\beta  \right )^{2}\right\} subject \; to \sum_{j=1}^{p}\left| \beta _{j}\right|\leq t$$
+Ridge:
+$$\min_{\beta _{0},\beta } \left\{\sum_{i=1}^{N}\left ( y_{i}-\beta _{0}-x_{i}^{T}\beta  \right )^{2}\right\} subject \; to \sum_{j=1}^{p} \beta _{j}^{2}\leq t$$
+t is a prespecified free parameter that determines the degree of regularization.
+
+### Assumption
+
+### Validation
+Here we explain one important step to the data augmentation. For fairness purposes, we need to ensure that our train and test distributions are the same (e.g. predictors existing in test data must also exist in train data). For this reason, we first compute the confusion matrix of both the train and test data, we then drop the features that are in the disjoint set of train and test sets. 
+
+### Model
+We evaluate our models by mean squared error and our result shows that Lasso out-performs Ridge.
+```{R}
+x_train <-  model.matrix(SalePrice~ . -1 , data = train)
+y_train <-  train$SalePrice
+x_test <-  model.matrix(SalePrice~ . -1 , data = test)
+y_test <-  test$SalePrice
+print(dim(x_train))
+print(dim(x_test))
+#x_train-x_test
+missing_cols = c()
+for (var in colnames(x_train)){
+  if (!(var %in% colnames(x_test))){
+    missing_cols <- c(missing_cols, var)
+  }
+}
+
+#x_test-x_train
+missing_cols_2 = c()
+for (var in colnames(x_test)){
+  if (!(var %in% colnames(x_train))){
+    missing_cols_2 <- c(missing_cols_2, var)
+  }
+}
+#we simply remove the mismatch to ensure the same distribution between train and test dataset
+x_train <- x_train[, !colnames(x_train) %in% missing_cols]
+x_test <- x_test[, !colnames(x_test) %in% missing_cols_2]
+```
+
+#lasso
+```{R}
+cv.lasso <-  cv.glmnet(x_train, y_train, type.measure = "mse", alpha = 1)
+#plot(cv.ridge)
+model =glmnet(x_train,y_train,lambda=cv.lasso$lambda.min, alpha=1)
+#lasso.bestlam =cv.lasso$lambda.min
+#tmp_coef = coef(cv.lasso,s=lasso.bestlam)
+#varnames = data.frame(name = tmp_coef@Dimnames[[1]][tmp_coef@i])
+#mylist = list(name = tmp_coef@Dimnames[[1]][tmp_coef@i])
+pred <- predict(model,x_test)
+mean((pred-y_test)^2)
+```
+
+#ridge
+```{R}
+cv.ridge <-  cv.glmnet(x_train, y_train, type.measure = "mse", alpha = 0)
+#plot(cv.ridge)
+model =glmnet(x_train,y_train,lambda=cv.ridge$lambda.min, alpha=0)
+pred <- predict(model,x_test)
+mean((pred-y_test)^2)
+```
+
+
