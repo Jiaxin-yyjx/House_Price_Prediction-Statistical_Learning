@@ -1,7 +1,7 @@
 ---
-title: "4620 Final Project"
-author: "Group_2"
-date: "2022-11-20"
+title: "STAT4620_Final_Project"
+author: "Group_2: Yahui Zhou, Jiaxin Yang, Jiangyue Zhu, Jike Zhong, Tingwei Guan"
+date: "2022-11-24"
 output: html_document
 ---
 
@@ -19,6 +19,10 @@ library(glmnet)
 library(ggplot2)
 library(tidyr)
 library(dplyr)
+library(e1071)
+library(caTools)
+library(class)
+library(caret)
 ```
 
 
@@ -300,7 +304,7 @@ t is a prespecified free parameter that determines the degree of regularization.
 ### Validation
 Here we explain one important step to the data augmentation. For fairness purposes, we need to ensure that our train and test distributions are the same (e.g. predictors existing in test data must also exist in train data). For this reason, we first compute the confusion matrix of both the train and test data, we then drop the features that are in the disjoint set of train and test sets. 
 
-### Model
+### Model & Result
 We evaluate our models by mean squared error and our result shows that Lasso out-performs Ridge.
 ```{R}
 x_train <-  model.matrix(SalePrice~ . -1 , data = train)
@@ -327,28 +331,52 @@ for (var in colnames(x_test)){
 #we simply remove the mismatch to ensure the same distribution between train and test dataset
 x_train <- x_train[, !colnames(x_train) %in% missing_cols]
 x_test <- x_test[, !colnames(x_test) %in% missing_cols_2]
+
+train = train[, !colnames(train) %in% missing_cols]
+train = train[, !colnames(train) %in% missing_cols_2]
+
+test = test[, !colnames(test) %in% missing_cols]
+test = train[, !colnames(train) %in% missing_cols]
 ```
 
-#lasso
+#### lasso
 ```{R}
 cv.lasso <-  cv.glmnet(x_train, y_train, type.measure = "mse", alpha = 1)
-#plot(cv.ridge)
-model =glmnet(x_train,y_train,lambda=cv.lasso$lambda.min, alpha=1)
-#lasso.bestlam =cv.lasso$lambda.min
-#tmp_coef = coef(cv.lasso,s=lasso.bestlam)
-#varnames = data.frame(name = tmp_coef@Dimnames[[1]][tmp_coef@i])
-#mylist = list(name = tmp_coef@Dimnames[[1]][tmp_coef@i])
-pred <- predict(model,x_test)
-mean((pred-y_test)^2)
+plot(cv.lasso)
+model.lasso =glmnet(x_train,y_train,lambda=cv.lasso$lambda.min, alpha=1)
+pred <- predict(model.lasso,x_test)
+mse_lasso = mean((pred-y_test)^2)
+mse_lasso
 ```
 
-#ridge
+#### ridge
 ```{R}
 cv.ridge <-  cv.glmnet(x_train, y_train, type.measure = "mse", alpha = 0)
-#plot(cv.ridge)
-model =glmnet(x_train,y_train,lambda=cv.ridge$lambda.min, alpha=0)
-pred <- predict(model,x_test)
-mean((pred-y_test)^2)
+plot(cv.ridge)
+model.ridge = glmnet(x_train,y_train,lambda=cv.ridge$lambda.min, alpha=0)
+pred <- predict(model.ridge,x_test)
+mse_ridge = mean((pred-y_test)^2)
+mse_ridge
 ```
 
+#### pcr
+```{R}
+model.pcr = pcr(SalePrice~.,data=train, validation="CV")
+# summary(model.pcr)
+validationplot(model.pcr,val.type="MSEP", ylim=c(0,9999999999))
+model.pcr2 = pcr(SalePrice~.,data=train,scale=TRUE,ncomp=170)
+pcr.pred=predict(model.pcr2,ncomp=170)
+mse_pcr = mean((as.vector(pcr.pred)-y_test)^2)
+mse_pcr
+```
 
+#### plsr
+```{R}
+model.plsr = plsr(SalePrice~.,data=train,validation="CV")
+# summary(model.plsr)
+validationplot(model.plsr,val.type="MSEP")
+model.plsr2 = plsr(SalePrice~.,data=train,scale=TRUE,ncomp=23)
+pls.pred=predict(model.plsr2,ncomp=23)
+mse_pls = mean((as.vector(pls.pred)-y_test)^2)
+mse_pls
+```
