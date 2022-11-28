@@ -10,5 +10,7 @@ The Ames Iowa housing dataset.
 - data_description.txt: source variables description
 - train.csv: the dataset of all training data for SalePrice
 - test_new.csv: the dataset of all testing data for SalePrice
+- House Price Prediction.Rmd: the code in R MarkDown
+- House Price Prediction.pdf: the final report
 - STAT4620_Group2_Presentation.pptx: the presentation slides
 - README.md
