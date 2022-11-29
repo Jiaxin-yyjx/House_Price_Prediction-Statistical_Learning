@@ -7,11 +7,12 @@ The Ames Iowa housing dataset.
  
 ## Methods
 R Markdown
-
-- regression
-- clustering
-- dimensionality reduction
+- explore data analysis
+- collinear problems
 - feature extraction
+- dimension reduction
+- regression models (Ridge/Lasso/PCR/PLS)
+
 
 ## Files
 - data_description.txt: source variables description
