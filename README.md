@@ -9,7 +9,6 @@ The Ames Iowa housing dataset.
 R Markdown
 
 - regression
-- classification
 - clustering
 - dimensionality reduction
 - feature extraction
