@@ -12,7 +12,7 @@ R Markdown
 - classification
 - clustering
 - dimensionality reduction
-- feature extraction.
+- feature extraction
 
 ## Files
 - data_description.txt: source variables description
