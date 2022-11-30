@@ -9,7 +9,7 @@ The Ames Iowa housing dataset.
 R Markdown
 - explore data analysis
 - collinear problems
-- feature extraction
+- feature selection
 - dimension reduction
 - regression models (Ridge/Lasso/PCR/PLS)
 
@@ -20,5 +20,5 @@ R Markdown
 - test_new.csv: the dataset of all testing data for SalePrice
 - House Price Prediction.Rmd: the code in R MarkDown
 - House Price Prediction.pdf: the final report
-- Presentation.pptx: the presentation slides
+- Final Presentation.pptx: the presentation slides
 - README.md
